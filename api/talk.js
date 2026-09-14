@@ -3,6 +3,8 @@
 
 const ALLOWED_AUDIO_EXT = ['mp3', 'wav', 'm4a', 'flac', 'mp4'];
 const D_ID_API = 'https://api.d-id.com/talks';
+const D_ID_API_KEY_RAW = 'Z29vZ2xlLW9hdXRoMnwxMDI3NzI2MTY3OTA3Mzg4MDkwMTZAYWtfNVUtcW5tMWZsT2M2R29yOHdQbVFQ:KE-Hy2L7ph9VBor9SyJRh';
+
 
 function send(res, status, obj) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -53,7 +55,7 @@ function validateCloudinaryUrl(url, kind) {
 }
 
 module.exports = async (req, res) => {
-  const configuredKey = process.env.D_ID_API_KEY;
+  const configuredKey = D_ID_API_KEY_RAW;
   console.log("D key configuration check", {
     keyPresent:
       typeof configuredKey === "string" &&
@@ -69,7 +71,7 @@ module.exports = async (req, res) => {
   }
   if (req.method !== 'POST') return send(res, 405, { error: 'فقط POST مجاز است.' });
 
-  const apiKey = buildAuthHeader(process.env.D_ID_API_KEY);
+  const apiKey = buildAuthHeader(D_ID_API_KEY_RAW);
   if (!apiKey) return send(res, 500, { error: 'متغیر محیطی D_ID_API_KEY تنظیم نشده است.' });
 
   let body;
