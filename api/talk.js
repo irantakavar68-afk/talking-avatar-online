@@ -43,6 +43,14 @@ function validateCloudinaryUrl(url, kind) {
 }
 
 module.exports = async (req, res) => {
+  const configuredKey = process.env.D_ID_API_KEY;
+  console.log("D key configuration check", {
+    keyPresent:
+      typeof configuredKey === "string" &&
+      configuredKey.trim().length > 0,
+    environment: process.env.VERCEL_ENV || "unknown"
+  });
+
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
