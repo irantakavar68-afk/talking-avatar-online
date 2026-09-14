@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>آواتار سخنگو — آنلاین</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#1e293b; --card2:#273549; --text:#e2e8f0; --muted:#94a3b8;
+    --accent:#22d3ee; --accent2:#a78bfa; --ok:#34d399; --err:#f87171; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Tahoma,Vazirmatn,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .wrap{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+  header{text-align:center;margin-bottom:24px}
+  header h1{margin:0 0 6px;font-size:26px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  header p{margin:0;color:var(--muted);font-size:14px}
+  .card{background:var(--card);border:1px solid #334155;border-radius:var(--radius);padding:20px;margin-bottom:18px}
+  label{display:block;margin:12px 0 6px;font-size:14px;color:var(--muted)}
+  textarea,input[type=text]{width:100%;background:var(--card2);border:1px solid #3b4a61;color:var(--text);border-radius:10px;padding:12px;font-family:inherit;font-size:15px;resize:vertical}
+  textarea{min-height:110px}
+  .drop{border:2px dashed #3b4a61;border-radius:12px;padding:18px;text-align:center;color:var(--muted);cursor:pointer;transition:.2s}
+  .drop:hover,.drop.over{border-color:var(--accent);color:var(--accent)}
+  .drop.has{border-color:var(--ok);color:var(--ok)}
+  .filemeta{font-size:12px;margin-top:6px}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:240px}
+  button{width:100%;margin-top:18px;padding:14px;border:0;border-radius:12px;font-size:16px;font-family:inherit;font-weight:bold;cursor:pointer;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#0b1220;transition:.2s}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .status{margin-top:14px;padding:12px;border-radius:10px;font-size:14px;display:none;white-space:pre-wrap}
+  .status.info{display:block;background:#1e3a5f;color:#93c5fd}
+  .status.ok{display:block;background:#14332b;color:var(--ok)}
+  .status.err{display:block;background:#3b1d24;color:var(--err)}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid #93c5fd;border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:middle;margin-left:8px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  video{width:100%;border-radius:12px;background:#000;margin-top:10px}
+  a.dl{display:inline-block;margin-top:10px;color:var(--accent);text-decoration:none;font-size:14px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.9}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎬 آواتار سخنگوی آنلاین</h1>
+    <p>متن فارسی + عکس چهره + صوت گفتار → ویدیوی لیپ‌سینک با D-ID</p>
+  </header>
+
+  <div class="card">
+    <label for="text">متن گفتار (الزامی — همان متنی که در فایل صوتی خوانده شده است)</label>
+    <textarea id="text" placeholder="مثلاً: سلام، به کانال من خوش آمدید..."></textarea>
+    <div class="hint">⚠️ متن برای رونوشت (transcript) لازم است. هنگامی که فایل صوتی می‌دهید، D-ID حرکت لب را از روی «صوت» می‌سازد و متن صرفاً به‌عنوان رونوشت ضبط می‌شود. تبدیل متن به گفتار یا کلون صدا از روی نمونه، نیازمند سرویس جداگانه (مثل ElevenLabs یا Azure TTS) است و در این پروژه نیست.</div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>🖼️ عکس چهره (JPG / PNG — حداکثر ۱۰MB)</label>
+        <div class="drop" id="imgDrop">برای انتخاب کلیک کنید یا عکس را اینجا بکشید
+          <div class="filemeta" id="imgMeta"></div>
+        </div>
+        <input type="file" id="imgInput" accept=".jpg,.jpeg,.png,image/jpeg,image/png" hidden />
+      </div>
+      <div>
+        <label>🎙️ فایل صوتی (MP3 / WAV / M4A / FLAC / MP4 — حداکثر ۵۰MB)</label>
+        <div class="drop" id="audDrop">برای انتخاب کلیک کنید یا صوت را اینجا بکشید
+          <div class="filemeta" id="audMeta"></div>
+        </div>
+        <input type="file" id="audInput" accept=".mp3,.wav,.m4a,.flac,.mp4,audio/mpeg,audio/wav,audio/x-m4a,audio/flac,video/mp4" hidden />
+      </div>
+    </div>
+    <div class="hint">عکس و صوت مستقیماً و بدون امضا (unsigned) به Cloudinary آپلود می‌شوند، سپس لینک‌ها برای ساخت ویدیو به سرور فرستاده می‌شود.</div>
+  </div>
+
+  <div class="card">
+    <button id="goBtn">🚀 ساخت ویدیو</button>
+    <div class="status" id="status"></div>
+    <div id="result"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var cfg = window.APP_CONFIG || {};
+
+  var textEl   = document.getElementById('text');
+  var imgIn    = document.getElementById('imgInput');
+  var audIn    = document.getElementById('audInput');
+  var imgDrop  = document.getElementById('imgDrop');
+  var audDrop  = document.getElementById('audDrop');
+  var imgMeta  = document.getElementById('imgMeta');
+  var audMeta  = document.getElementById('audMeta');
+  var goBtn    = document.getElementById('goBtn');
+  var statusEl = document.getElementById('status');
+  var resultEl = document.getElementById('result');
+
+  var imgFile = null, audFile = null;
+
+  var IMG_EXT = ['jpg','jpeg','png'];
+  var AUD_EXT = ['mp3','wav','m4a','flac','mp4'];
+  var IMG_MAX = 10  * 1024 * 1024;
+  var AUD_MAX = 50  * 1024 * 1024;
+
+  function ext(name){ var p = name.split('.'); return p.length > 1 ? p.pop().toLowerCase() : ''; }
+  function fmtSize(b){ return b > 1048576 ? (b/1048576).toFixed(1)+' MB' : Math.round(b/1024)+' KB'; }
+
+  function wireDrop(drop, input, setter, meta, exts, max, label){
+    drop.addEventListener('click', function(){ input.click(); });
+    drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', function(){ drop.classList.remove('over'); });
+    drop.addEventListener('drop', function(e){
+      e.preventDefault(); drop.classList.remove('over');
+      if (e.dataTransfer.files.length) setter(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', function(){ if (input.files.length) setter(input.files[0]); });
+  }
+
+  function setImage(f){
+    var e = ext(f.name);
+    if (IMG_EXT.indexOf(e) === -1) return alert('فرمت عکس باید JPG یا PNG باشد.');
+    if (f.size > IMG_MAX) return alert('حجم عکس بیش از ۱۰ مگابایت است.');
+    imgFile = f;
+    imgDrop.classList.add('has');
+    imgMeta.textContent = f.name + ' — ' + fmtSize(f.size);
+  }
+  function setAudio(f){
+    var e = ext(f.name);
+    if (AUD_EXT.indexOf(e) === -1) return alert('فرمت صوت باید MP3، WAV، M4A، FLAC یا MP4 باشد.');
+    if (f.size > AUD_MAX) return alert('حجم صوت بیش از ۵۰ مگابایت است.');
+    audFile = f;
+    audDrop.classList.add('has');
+    audMeta.textContent = f.name + ' — ' + fmtSize(f.size);
+  }
+  wireDrop(imgDrop, imgIn, setImage, imgMeta, IMG_EXT, IMG_MAX, 'عکس');
+  wireDrop(audDrop, audIn, setAudio, audMeta, AUD_EXT, AUD_MAX, 'صوت');
+
+  function setStatus(cls, msg, spin){
+    statusEl.className = 'status ' + cls;
+    statusEl.textContent = msg + (spin ? ' ⏳' : '');
+    if (spin) {
+      var s = document.createElement('span'); s.className = 'spinner';
+      statusEl.appendChild(s);
+    }
+  }
+
+  // ---------- Cloudinary unsigned upload ----------
+  function uploadToCloudinary(file, resourceType){
+    var cloud = cfg.CLOUDINARY_CLOUD_NAME;
+    var preset = cfg.CLOUDINARY_UPLOAD_PRESET;
+    if (!cloud || !preset) throw new Error('پیکربندی Cloudinary در api/config.js تنظیم نشده است.');
+    var url = 'https://api.cloudinary.com/v1_1/' + cloud + '/' + resourceType + '/upload';
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', preset);
+    return fetch(url, { method:'POST', body: fd }).then(function(r){
+      return r.json().then(function(j){
+        if (!r.ok || j.error) throw new Error('خطای آپلود Cloudinary: ' + (j.error && j.error.message || r.status));
+        if (!j.secure_url) throw new Error('Cloudinary لینک امن برنگرداند.');
+        return j.secure_url;
+      });
+    });
+  }
+
+  // ---------- Talk flow ----------
+  goBtn.addEventListener('click', function(){
+    resultEl.innerHTML = '';
+    var text = (textEl.value || '').trim();
+    if (!text) return setStatus('err', 'لطفاً متن گفتار را وارد کنید.');
+    if (text.length > 5000) return setStatus('err', 'متن بیش از حد طولانی است (حداکثر ۵۰۰۰ کاراکتر).');
+    if (!imgFile) return setStatus('err', 'لطفاً عکس چهره را انتخاب کنید.');
+    if (!audFile) return setStatus('err', 'لطفاً فایل صوتی را انتخاب کنید (صوت باید شامل گفتار همان متن باشد).');
+
+    goBtn.disabled = true;
+    setStatus('info', 'در حال آپلود عکس...');
+
+    uploadToCloudinary(imgFile, 'image')
+      .then(function(imgUrl){
+        setStatus('info', 'عکس آپلود شد. در حال آپلود صوت...');
+        return uploadToCloudinary(audFile, 'video').then(function(audUrl){ return [imgUrl, audUrl]; });
+      })
+      .then(function(urls){
+        setStatus('info', 'صوت آپلود شد. در حال ارسال درخواست به سرور...');
+        return fetch('/api/talk', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ text: text, imageUrl: urls[0], audioUrl: urls[1] })
+        });
+      })
+      .then(function(r){ return r.json().then(function(j){ return { ok:r.ok, j:j }; }); })
+      .then(function(res){
+        if (!res.ok || !res.j.id) throw new Error(res.j.error || 'خطای ناشناخته از سرور');
+        var id = res.j.id;
+        setStatus('info', 'ویدیو در صف ساخت قرار گرفت. در حال بررسی وضعیت...', true);
+        return poll(id);
+      })
+      .catch(function(err){
+        setStatus('err', '❌ ' + (err && err.message ? err.message : err));
+        goBtn.disabled = false;
+      });
+  });
+
+  function poll(id, attempt){
+    attempt = attempt || 0;
+    if (attempt > 150) { goBtn.disabled = false; return setStatus('err', 'زمان انتظار تمام شد. دوباره تلاش کنید.'); }
+    return fetch('/api/status?id=' + encodeURIComponent(id))
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (j.error) throw new Error(j.error);
+        if (j.status === 'done' && j.resultUrl){
+          setStatus('ok', '✅ ویدیو آماده است!');
+          showVideo(j.resultUrl);
+          goBtn.disabled = false;
+          return;
+        }
+        setStatus('info', 'در حال ساخت ویدیو... (' + (j.status || 'در صف') + ')', true);
+        setTimeout(function(){ poll(id, attempt + 1); }, 4000);
+      })
+      .catch(function(err){
+        setStatus('err', '❌ ' + (err && err.message ? err.message : err));
+        goBtn.disabled = false;
+      });
+  }
+
+  function showVideo(url){
+    resultEl.innerHTML = '';
+    var v = document.createElement('video');
+    v.src = url; v.controls = true; v.playsInline = true;
+    var a = document.createElement('a');
+    a.href = url; a.className = 'dl'; a.download = 'talking-avatar.mp4';
+    a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = '⬇️ دانلود ویدیو';
+    resultEl.appendChild(v); resultEl.appendChild(a);
+  }
+})();
+</script>
+</body>
+</html>

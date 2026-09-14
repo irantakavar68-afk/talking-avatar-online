@@ -1,0 +1,14 @@
+{
+  "name": "talking-avatar-online",
+  "version": "1.0.0",
+  "private": true,
+  "description": "آواتار سخنگوی فارسی آنلاین (Vercel + Cloudinary + D-ID Talks)",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {}
+}
