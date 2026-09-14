@@ -53,10 +53,24 @@
   </header>
 
   <div class="card">
-    <label for="text">متن گفتار (الزامی — همان متنی که در فایل صوتی خوانده شده است)</label>
-    <textarea id="text" placeholder="مثلاً: سلام، به کانال من خوش آمدید..."></textarea>
-    <div class="hint">⚠️ متن برای رونوشت (transcript) لازم است. هنگامی که فایل صوتی می‌دهید، D-ID حرکت لب را از روی «صوت» می‌سازد و متن صرفاً به‌عنوان رونوشت ضبط می‌شود. تبدیل متن به گفتار یا کلون صدا از روی نمونه، نیازمند سرویس جداگانه (مثل ElevenLabs یا Azure TTS) است و در این پروژه نیست.</div>
+    <label for="text">متن جدید گفتار</label>
+    <textarea
+      id="text"
+      placeholder="مثلاً: سلام، به کانال من خوش آمدید..."
+    ></textarea>
+  
+    <label for="voiceId">شناسه صدای کلون‌شده</label>
+    <input
+      type="text"
+      id="voiceId"
+      placeholder="voice_id دریافت‌شده از ElevenLabs"
+    />
+  
+    <div class="hint">
+      ابتدا با فایل صوتی نمونه کلون صدا را بسازید. سپس voice_id دریافت‌شده را وارد کنید.
+    </div>
   </div>
+
 
   <div class="card">
     <div class="row">
@@ -68,18 +82,37 @@
         <input type="file" id="imgInput" accept=".jpg,.jpeg,.png,image/jpeg,image/png" hidden />
       </div>
       <div>
-        <label>🎙️ فایل صوتی (MP3 / WAV / M4A / FLAC / MP4 — حداکثر ۵۰MB)</label>
-        <div class="drop" id="audDrop">برای انتخاب کلیک کنید یا صوت را اینجا بکشید
-          <div class="filemeta" id="audMeta"></div>
+        <label>🎙️ فایل نمونه صدا برای ساخت کلون</label>
+        
+        <div class="drop" id="voiceDrop">
+          برای انتخاب فایل نمونه صدا کلیک کنید یا فایل را اینجا بکشید
+          <div class="filemeta" id="voiceMeta"></div>
         </div>
-        <input type="file" id="audInput" accept=".mp3,.wav,.m4a,.flac,.mp4,audio/mpeg,audio/wav,audio/x-m4a,audio/flac,video/mp4" hidden />
+        
+        <input
+          type="file"
+          id="voiceSample"
+          accept=".mp3,.wav,.m4a,.flac,audio/*"
+          hidden
+        />
+        
+        <button id="cloneVoiceButton" type="button">
+          ساخت کلون صدا
+        </button>
+
       </div>
     </div>
-    <div class="hint">عکس و صوت مستقیماً و بدون امضا (unsigned) به Cloudinary آپلود می‌شوند، سپس لینک‌ها برای ساخت ویدیو به سرور فرستاده می‌شود.</div>
+        <div class="hint">
+      فایل نمونه فقط برای ساخت کلون صدا استفاده می‌شود. صوت نهایی از روی متن جدید تولید خواهد شد.
+      </div>
+
   </div>
 
   <div class="card">
-    <button id="goBtn">🚀 ساخت ویدیو</button>
+      <button id="generateButton" type="button">
+        🚀 تولید صوت و ساخت ویدیو
+      </button>
+
     <div class="status" id="status"></div>
     <div id="result"></div>
   </div>
@@ -89,21 +122,25 @@
 (function(){
   var cfg = window.APP_CONFIG || {};
 
-  var textEl   = document.getElementById('text');
-  var imgIn    = document.getElementById('imgInput');
-  var audIn    = document.getElementById('audInput');
-  var imgDrop  = document.getElementById('imgDrop');
-  var audDrop  = document.getElementById('audDrop');
-  var imgMeta  = document.getElementById('imgMeta');
-  var audMeta  = document.getElementById('audMeta');
-  var goBtn    = document.getElementById('goBtn');
+  var textEl = document.getElementById('text');
+  var voiceIdEl = document.getElementById('voiceId');
+  var imgIn = document.getElementById('imgInput');
+  var voiceIn = document.getElementById('voiceSample');
+  var imgDrop = document.getElementById('imgDrop');
+  var voiceDrop = document.getElementById('voiceDrop');
+  var imgMeta = document.getElementById('imgMeta');
+  var voiceMeta = document.getElementById('voiceMeta');
+  var cloneBtn = document.getElementById('cloneVoiceButton');
+  var goBtn = document.getElementById('generateButton');
   var statusEl = document.getElementById('status');
   var resultEl = document.getElementById('result');
 
-  var imgFile = null, audFile = null;
+   var imgFile = null;
+   var voiceSampleFile = null;
+    
+   var IMG_EXT = ['jpg', 'jpeg', 'png'];
+   var VOICE_EXT = ['mp3', 'wav', 'm4a', 'flac'];
 
-  var IMG_EXT = ['jpg','jpeg','png'];
-  var AUD_EXT = ['mp3','wav','m4a','flac','mp4'];
   var IMG_MAX = 10  * 1024 * 1024;
   var AUD_MAX = 50  * 1024 * 1024;
 
@@ -129,16 +166,33 @@
     imgDrop.classList.add('has');
     imgMeta.textContent = f.name + ' — ' + fmtSize(f.size);
   }
-  function setAudio(f){
-    var e = ext(f.name);
-    if (AUD_EXT.indexOf(e) === -1) return alert('فرمت صوت باید MP3، WAV، M4A، FLAC یا MP4 باشد.');
-    if (f.size > AUD_MAX) return alert('حجم صوت بیش از ۵۰ مگابایت است.');
-    audFile = f;
-    audDrop.classList.add('has');
-    audMeta.textContent = f.name + ' — ' + fmtSize(f.size);
+  function setVoiceSample(file) {
+    var e = ext(file.name);
+  
+    if (VOICE_EXT.indexOf(e) === -1) {
+      return alert('فرمت فایل باید MP3، WAV، M4A یا FLAC باشد.');
+    }
+  
+    if (file.size > 50 * 1024 * 1024) {
+      return alert('حجم فایل نمونه بیش از ۵۰ مگابایت است.');
+    }
+  
+    voiceSampleFile = file;
+    voiceDrop.classList.add('has');
+    voiceMeta.textContent = file.name + ' — ' + fmtSize(file.size);
   }
+
   wireDrop(imgDrop, imgIn, setImage, imgMeta, IMG_EXT, IMG_MAX, 'عکس');
-  wireDrop(audDrop, audIn, setAudio, audMeta, AUD_EXT, AUD_MAX, 'صوت');
+   wireDrop(
+    voiceDrop,
+    voiceIn,
+    setVoiceSample,
+    voiceMeta,
+    VOICE_EXT,
+    50 * 1024 * 1024,
+    'فایل نمونه صدا'
+  );
+
 
   function setStatus(cls, msg, spin){
     statusEl.className = 'status ' + cls;
@@ -166,6 +220,49 @@
       });
     });
   }
+cloneBtn.addEventListener('click', function () {
+  if (!voiceSampleFile) {
+    return setStatus('err', 'ابتدا فایل نمونه صدا را انتخاب کنید.');
+  }
+
+  cloneBtn.disabled = true;
+  setStatus('info', 'در حال ساخت کلون صدا...', true);
+
+  var formData = new FormData();
+  formData.append('voiceSample', voiceSampleFile);
+  formData.append('name', 'Persian Avatar Voice');
+
+  fetch('/api/clone-voice', {
+    method: 'POST',
+    body: formData
+  })
+    .then(function (response) {
+      return response.json().then(function (data) {
+        return { ok: response.ok, data: data };
+      });
+    })
+    .then(function (result) {
+      if (!result.ok || !result.data.voiceId) {
+        throw new Error(
+          result.data.error || 'ساخت کلون صدا ناموفق بود.'
+        );
+      }
+
+      voiceIdEl.value = result.data.voiceId;
+      localStorage.setItem('avatarVoiceId', result.data.voiceId);
+
+      setStatus(
+        'ok',
+        'کلون صدا ساخته شد. voice_id در فرم ذخیره شد.'
+      );
+    })
+    .catch(function (error) {
+      setStatus('err', error.message);
+    })
+    .finally(function () {
+      cloneBtn.disabled = false;
+    });
+});
 
   // ---------- Talk flow ----------
   goBtn.addEventListener('click', function(){
