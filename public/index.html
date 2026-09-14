@@ -236,11 +236,40 @@ cloneBtn.addEventListener('click', function () {
     method: 'POST',
     body: formData
   })
-    .then(function (response) {
-      return response.json().then(function (data) {
-        return { ok: response.ok, data: data };
-      });
-    })
+.then(async function (response) {
+  var raw = await response.text();
+  var data;
+
+  try {
+    data = JSON.parse(raw);
+  } catch (error) {
+    // فقط برای عیب‌یابی؛ پاسخ کامل را عمومی منتشر نکنید.
+    console.error('clone-voice non-JSON response', {
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+      preview: raw.slice(0, 300)
+    });
+
+    if (response.status === 404) {
+      throw new Error(
+        'مسیر /api/clone-voice پیدا نشد. ' +
+        'فایل api/clone-voice.js باید ایجاد و در Vercel مستقر شود.'
+      );
+    }
+
+    throw new Error(
+      'سرور پاسخ JSON برنگرداند. کد HTTP: ' +
+      response.status +
+      '. جزئیات را در Console مرورگر و لاگ Vercel بررسی کنید.'
+    );
+  }
+
+  return {
+    ok: response.ok,
+    data: data
+  };
+})
+
     .then(function (result) {
       if (!result.ok || !result.data.voiceId) {
         throw new Error(
