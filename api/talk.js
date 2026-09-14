@@ -98,15 +98,15 @@ module.exports = async (req, res) => {
   const payload = {
     source_url: imageUrl,
     script: {
-      type: 'audio',          // lip-sync is driven by the uploaded audio
-      audio_url: generatedAudioUrl,
-      // text is stored as transcript metadata; not used for TTS when type=audio
+      type: 'audio',
+      audio_url: audioUrl,
       subtitles: 'false'
     },
     config: {
       result_format: 'mp4'
     }
   };
+
 
   try {
     const r = await fetch(D_ID_API, {
