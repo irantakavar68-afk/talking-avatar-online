@@ -123,7 +123,11 @@ module.exports = async (req, res) => {
 
     if (!r.ok) {
       const msg = (data && (data.description || data.message || data.error)) || ('D-ID HTTP ' + r.status);
-      return send(res, r.status === 401 ? 401 : 502, { error: 'خطای D-ID: ' + msg });
+     return send(res, r.status === 401 ? 401 : 502, {
+      error: 'خطای D-ID (HTTP ' + r.status + '): ' +
+        (typeof msg === 'string' ? msg : JSON.stringify(msg))
+    });
+
     }
 
     if (!data || !data.id) {
