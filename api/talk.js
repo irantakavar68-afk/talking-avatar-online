@@ -10,14 +10,24 @@ function send(res, status, obj) {
 }
 
 function buildAuthHeader(raw) {
-  // Accepts key pasted with or without the leading "Basic " prefix.
-  if (!raw) return null;
-  let key = String(raw).trim();
-  if (key.toLowerCase().startsWith('basic ')) {
-    return 'Basic ' + key.slice(6).trim();
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return null;
   }
-  return 'Basic ' + key;
+
+  // Remove an optional Basic prefix.
+  const value = raw.trim().replace(/^Basic\s+/i, '').trim();
+
+  if (!value) return null;
+
+  // Raw D-ID key: API_USER:API_PASSWORD
+  if (value.includes(':')) {
+    return 'Basic ' + Buffer.from(value, 'utf8').toString('base64');
+  }
+
+  // Already Base64-encoded credentials.
+  return 'Basic ' + value;
 }
+
 
 function validateCloudinaryUrl(url, kind) {
   try {
