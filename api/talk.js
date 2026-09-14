@@ -99,7 +99,7 @@ module.exports = async (req, res) => {
     source_url: imageUrl,
     script: {
       type: 'audio',          // lip-sync is driven by the uploaded audio
-      audio_url: audioUrl,
+      audio_url: generatedAudioUrl,
       // text is stored as transcript metadata; not used for TTS when type=audio
       subtitles: 'false'
     },
