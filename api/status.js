@@ -1,22 +1,39 @@
 // api/status.js — polls D-ID talk status and returns the final video URL.
 // CommonJS handler for Vercel serverless (Node >= 18, built-in fetch, no deps).
 
+// کلید موقت D-ID — همان کلید استفاده‌شده در talk.js
+const D_ID_API_KEY_RAW = 'Z29vZ2xlLW9hdXRoMnwxMDI3NzI2MTY3OTA3Mzg4MDkwMTZAYWtfNVUtcW5tMWZsT2M2R29yOHdQbVFQ:KE-Hy2L7ph9VBor9SyJRh';
+
 function send(res, status, obj) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.status(status).json(obj);
 }
 
 function buildAuthHeader(raw) {
-  if (!raw) return null;
-  let key = String(raw).trim();
-  if (key.toLowerCase().startsWith('basic ')) return 'Basic ' + key.slice(6).trim();
-  return 'Basic ' + key;
+  if (typeof raw !== 'string' || !raw.trim()) {
+    return null;
+  }
+
+  const value = raw.trim().replace(/^Basic\s+/i, '').trim();
+
+  if (!value) {
+    return null;
+  }
+
+  // کلید خام D-ID با قالب API_USER:API_PASSWORD
+  if (value.includes(':')) {
+    return 'Basic ' + Buffer.from(value, 'utf8').toString('base64');
+  }
+
+  // اگر مقدار از قبل Base64 شده باشد
+  return 'Basic ' + value;
 }
+
 
 module.exports = async (req, res) => {
   if (req.method !== 'GET') return send(res, 405, { error: 'فقط GET مجاز است.' });
 
-  const apiKey = buildAuthHeader(process.env.D_ID_API_KEY);
+  const apiKey = buildAuthHeader(D_ID_API_KEY_RAW);
   if (!apiKey) return send(res, 500, { error: 'متغیر محیطی D_ID_API_KEY تنظیم نشده است.' });
 
   const id = String(req.query.id || '').trim();
