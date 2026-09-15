@@ -1,88 +1,123 @@
-const formidable = require('formidable');
-
-function send(res, status, data) {
-  res.status(status).json(data);
-}
-
-module.exports = async (req, res) => {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
-    return send(res, 405, {
+    return res.status(405).json({
       error: 'فقط درخواست POST مجاز است.'
     });
   }
 
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-
-  if (!apiKey) {
-    return send(res, 500, {
-      error: 'ELEVENLABS_API_KEY در تنظیمات سرور وجود ندارد.'
-    });
-  }
-
-  const form = formidable({
-    multiples: false,
-    maxFileSize: 25 * 1024 * 10241024 * 1024
-  });
-
   try {
-    const [fields, files]    const uploadedFile = Array.isArray(files.voiceSample)
-      ? files.voiceSample[0]
-      : files.voiceSample;
+    const { audioUrl } = req.body || {};
 
-    if (!uploadedFile) {
-      return send(res, 400, {
-        error: 'فایل voiceSample ارسال نشده است.'
+    if (!audioUrl || typeof audioUrl !== 'string') {
+      return res.status(400).json({
+        error: 'آدرس فایل صوتی ارسال نشده است.'
       });
     }
 
-    const fileBuffer = require('fs').readFileSync(
-      uploadedFile.filepath
+    let parsedUrl;
+
+    try {
+      parsedUrl = new URL(audioUrl);
+    } catch {
+      return res.status(400).json({
+        error: 'آدرس فایل صوتی معتبر نیست.'
+      });
+    }
+
+    if (parsedUrl.protocol !== 'https: {
+      return res.status(400).jsonjson({
+        error: 'آدرس فایل صوتی باید با HTTPS شروع شود.'
+      });
+    }
+
+    if (!process.env.ELEVENLABS_API_KEY) {
+      return res.status(500).json({
+        error: 'متغیر ELEVENLABS_API_KEY در Vercel تنظیم نشده است.'
+      });
+    }
+
+    const audioResponse = await fetch(audioUrl);
+
+    if (!audioResponse.ok) {
+      return res.status(400).json({
+        error: 'دریافت فایل صوتی از Cloudinary ناموفق بود.'
+      });
+    }
+
+    const audioBuffer = await audioResponse.arrayBuffer();
+    const contentType =
+      audioResponse.headers.get('content-type') || 'audio/mpeg';
+
+    const audioFile = new File(
+      [audioBuffer],
+      'voice-sample.mp3',
+      { type: contentType }
     );
 
     const formData = new FormData();
 
     formData.append(
       'name',
-      String(fields.name?.[0] || 'Persian Avatar Voice')
+      process.env.ELEVENLABS_VOICE_NAME || 'Cloned Voice'
     );
 
     formData.append(
-      'files',
-      new Blob([fileBuffer], {
-        type: uploadedFile.mimetype || 'audio/mpeg'
-      }),
-      uploadedFile.originalFilename || 'voice-sample.mp3'
+      'description'
     );
 
-    const response = await fetch(
+    formData.append(
+      'description',
+      'VoiceData.append('files', audioFile);
+
+    const elevenLabsResponse = await fetch(
       'https://api.elevenlabs.io/v1/voices/add',
       {
         method: 'POST',
         headers: {
-          'xi-api-key': apiKey
+          'xi-api-key': process.env.ELEVENLABS_API_KEY
         },
         body: formData
       }
     );
 
-    const result = await response.json();
+    const responseText = await elevenLabsResponse.text();
 
-    if (!response.ok) {
-      return send(res, response.status, {
-        error: 'خطا در ساخت کلون صدا',
-        detail: result
+    let responseData;
+
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      return res.status(502).json({
+        error: 'ElevenLabs پاسخ JSON معتبر برنگرداند.'
       });
     }
 
-    return send(res, 200, {
-      success: true,
-      voiceId: result.voice_id,
-      name: result.name
+    if (!elevenLabsResponse.ok) {
+      const detail = responseData.detail;
+
+      return res.status(elevenLabsResponse.status).json({
+        error:
+          (detail && detail.message) ||
+          detail ||
+          responseData.message ||
+          'ساخت کلون صدا در ElevenLabs ناموفق بود.'
+      });
+    }
+
+    if (!responseData.voice_id) {
+      return res.status(502).json({
+        error: 'شناسه صدای ساخته‌شده از ElevenLabs دریافت نشد.'
+      });
+    }
+
+    return res.status(200).json({
+      voiceId: responseData.voice_id
     });
   } catch (error) {
-    return send(res, 500, {
-      error: 'ساخت کلون صدا انجام نشد.',
-      detail: error.message
+    console.error('clone-voice error:', error);
+
+    return res.status(500).json({
+      error: 'خطای داخلی در ساخت کلون صدا رخ داد.'
     });
   }
 };
