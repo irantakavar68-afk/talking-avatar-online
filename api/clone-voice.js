@@ -14,13 +14,31 @@ export default async function handler(req, res) {
       });
     }
 
+    let parsedUrl;
+
+    try {
+      parsedUrl = new URL(audioUrl);
+    } catch {
+      return res.status(400).json({
+        error: "لینک فایل صوتی معتبر نیست."
+      });
+    }
+
+    if (
+      parsedUrl.protocol !== "https:" ||
+      parsedUrl.hostname !== "res.cloudinary.com"
+    ) {
+      return res.status(400).json({
+        error: "فایل باید از Cloudinary دریافت شود."
+      });
+    }
+
     if (!process.env.ELEVENLABS_API_KEY) {
       return res.status(500).json({
         error: "کلید ElevenLabs در تنظیمات سرور تعریف نشده است."
       });
     }
 
-    // دریافت فایل صوتی از Cloudinary
     const audioResponse = await fetch(audioUrl);
 
     if (!audioResponse.ok) {
@@ -29,20 +47,34 @@ export default async function handler(req, res) {
       });
     }
 
+    const contentLength = Number(
+      audioResponse.headers.get("content-length") || 0
+    );
+
+    const maxBytes = 10 * 1024 * 1024;
+
+    if (contentLength > maxBytes) {
+      return res.status(413).json({
+        error: "حجم فایل صوتی بیشتر از حد مجاز است."
+      });
+    }
+
     const audioBuffer = await audioResponse.arrayBuffer();
 
-    const audioBlob = new Blob([audioBuffer], {
-      type:
-        audioResponse.headers.get("content-type") ||
-        "audio/mpeg"
-    });
+    if (audioBuffer.byteLength > maxBytes) {
+      return res.status(413).json({
+        error: "حجم فایل صوتی بیشتر از حد مجاز است."
+      });
+    }
 
-    // ارسال فایل از سرور به ElevenLabs
+    const contentType =
+      audioResponse.headers.get("content-type") || "audio/mpeg";
+
     const formData = new FormData();
 
     formData.append(
       "files",
-      audioBlob,
+      new Blob([audioBuffer], { type: contentType }),
       "voice-sample.mp3"
     );
 
@@ -59,15 +91,26 @@ export default async function handler(req, res) {
       }
     );
 
-    const result = await elevenResponse.json();
+    const responseText = await elevenResponse.text();
+
+    let result;
+
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      result = {
+        message: responseText || "پاسخ معتبر JSON نیست."
+      };
+    }
 
     if (!elevenResponse.ok) {
-      return res.status(elevenResponse.status).json({
+      return res.status(502).json({
         error:
           result.detail?.message ||
           result.detail ||
           result.message ||
-          "خطا در کلون صدا توسط ElevenLabs",
+          "خطا در ElevenLabs",
+        upstreamStatus: elevenResponse.status,
         details: result
       });
     }
