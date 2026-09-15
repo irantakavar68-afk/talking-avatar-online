@@ -6,44 +6,41 @@
     CLOUDINARY_CLOUD_NAME: "jvw0vyog",
     CLOUDINARY_UPLOAD_PRESET: "Hejazi"
   };
-    async function uploadVoiceToCloudinary(file) {
-  const formData = new FormData();
+async function uploadVoiceToCloudinary(file) {
+  const configResponse = await fetch("/api/config");
+  const config = await configResponse.json();
 
-  formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  if (!config.cloudName || !config.uploadPreset) {
+    throw new Error("تنظیمات Cloudinary ناقص است.");
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", config.uploadPreset);
 
   const uploadResponse = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+    `https://api.cloudinary.com/v1_1/${config.cloudName}/auto/upload`,
     {
-      method: 'POST',
+      method: "POST",
       body: formData
     }
   );
 
-  const uploadText = await uploadResponse.text();
-
-  let uploadData;
-
-  try {
-    uploadData = JSON.parse(uploadText);
-  } catch (error) {
-    throw new Error(
-      `Cloudinary پاسخ JSON برنگرداند. کد HTTP: ${uploadResponse.status}`
-    );
-  }
+  const result = await uploadResponse.json();
 
   if (!uploadResponse.ok) {
     throw new Error(
-      uploadData.error?.message || 'آپلود فایل صوتی در Cloudinary ناموفق بود.'
+      result.error?.message || "آپلود فایل در Cloudinary ناموفق بود."
     );
   }
 
-  if (!uploadData.secure_url) {
-    throw new Error('Cloudinary آدرس امن فایل را برنگرداند.');
+  if (!result.secure_url) {
+    throw new Error("Cloudinary لینک فایل را برنگرداند.");
   }
 
-  return uploadData.secure_url;
+  return result.secure_url;
 }
+
 
     async function createVoiceClone() {
   const fileInput = document.getElementById('voiceSample');
