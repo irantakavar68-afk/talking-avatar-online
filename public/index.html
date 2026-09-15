@@ -6,6 +6,126 @@
     CLOUDINARY_CLOUD_NAME: "jvw0vyog",
     CLOUDINARY_UPLOAD_PRESET: "Hejazi"
   };
+    async function uploadVoiceToCloudinary(file) {
+  const formData = new FormData();
+
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+  const uploadResponse = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+    {
+      method: 'POST',
+      body: formData
+    }
+  );
+
+  const uploadText = await uploadResponse.text();
+
+  let uploadData;
+
+  try {
+    uploadData = JSON.parse(uploadText);
+  } catch (error) {
+    throw new Error(
+      `Cloudinary پاسخ JSON برنگرداند. کد HTTP: ${uploadResponse.status}`
+    );
+  }
+
+  if (!uploadResponse.ok) {
+    throw new Error(
+      uploadData.error?.message || 'آپلود فایل صوتی در Cloudinary ناموفق بود.'
+    );
+  }
+
+  if (!uploadData.secure_url) {
+    throw new Error('Cloudinary آدرس امن فایل را برنگرداند.');
+  }
+
+  return uploadData.secure_url;
+}
+
+    async function createVoiceClone() {
+  const fileInput = document.getElementById('voiceSample');
+  const voiceIdInput = document.getElementById('voiceId');
+
+  const file = fileInput.files[0];
+
+  if (!file) {
+    throw new Error('لطفاً فایل صوتی نمونه را انتخاب کنید.');
+  }
+
+  const statusElement = document.getElementById('status');
+
+  if (statusElement) {
+    statusElement.textContent = 'در حال آپلود فایل صوتی در Cloudinary...';
+  }
+
+  // مرحله اول: ارسال مستقیم فایل به Cloudinary
+  const audioUrl = await uploadVoiceToCloudinary(file);
+
+  if (statusElement) {
+    statusElement.textContent = 'در حال ساخت کلون صدا...';
+  }
+
+  // مرحله دوم: ارسال فقط URL کوچک به Vercel
+  const cloneResponse = await fetch('/api/clone-voice', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      audioUrl: audioUrl
+    })
+  });
+
+  const cloneText = await cloneResponse.text();
+
+  let cloneData;
+
+  try {
+    cloneData = JSON.parse(cloneText);
+  } catch (error) {
+    if (cloneResponse.status === 413) {
+      throw new Error(
+        'فایل هنوز مستقیماً به Vercel ارسال می‌شود. درخواست /api/clone-voice باید فقط شامل audioUrl باشد.'
+      );
+    }
+
+    throw new Error(
+      `سرور پاسخ JSON برنگرداند. کد HTTP: ${cloneResponse.status}`
+    );
+  }
+
+  if (!cloneResponse.ok) {
+    throw new Error(
+      cloneData.error || 'ساخت کلون صدا ناموفق بود.'
+    );
+  }
+
+  if (!cloneData.voiceId) {
+    throw new Error('شناسه voiceId از سرور دریافت نشد.');
+  }
+
+  voiceIdInput.value = cloneData.voiceId;
+
+  if (statusElement) {
+    statusElement.textContent = 'کلون صدا با موفقیت ساخته شد.';
+  }
+
+  alert('کلون صدا با موفقیت ساخته شد.');
+}
+document
+  .getElementById('cloneVoiceButton')
+  .addEventListener('click', async function () {
+    try {
+      await createVoiceClone();
+    } catch (error) {
+      console.error('Voice clone error:', error);
+      alert(error.message);
+    }
+  });
+
 </script>
 
 <meta charset="utf-8" />
